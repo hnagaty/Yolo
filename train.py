@@ -3,8 +3,6 @@
 
 """
 Created on Sat Jun 25 23:17:33 2022
-
-@author: hnagaty
 """
 
 import yoloHelpers as hp

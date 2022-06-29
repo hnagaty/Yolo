@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jun 23 11:46:19 2022
-
-@author: hnagaty
 """
 
 import torch
