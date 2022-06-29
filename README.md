@@ -19,6 +19,9 @@ YOLOv1 is the first incarnation of YOLO. Other version added incremental improve
 1. `obsoleteCode.py`: A place holder for functions or code snippets that are no longer used.
 1. `downloadData.py`: Just a starter code used for downloading the PASCAL data. It is redundant code and no longer needed.
 
+### The trained weights file
+I uploaded the trained weights file to [Google Drive](https://drive.google.com/file/d/1CFzTDsVcrRoMjq3HmYsi-TYzOKkt3f87/view?usp=sharing)
+
 ---
 
 ### So how did it go?
