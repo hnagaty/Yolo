@@ -18,10 +18,20 @@ YOLOv1 is the first incarnation of YOLO. Other version added incremental improve
 1. `obsoleteCode.py`: A place holder for functions or code snippets that are no longer used.
 1. `downloadData.py`: Just a starter code used for downloading the PASCAL data. It is redundant code and no longer needed.
 
+---
 
-## So how did it go?
+### So how did it go?
 The prediction on training data is acceptable. The model can easily identify objects and define the bounding box.  
 For testing data, the model didn't generalise well and suffered from over fitting.  
-![trainSample](./figs/trainSample.jpg "Sample Train Images")  
-![testSample](./figs/testSample.jpg "Sample Test Images")
+
+<p align="center">Sample Training Images</p>
+
+![trainSample](./figs/trainSample.png "Sample Train Images")  
+
+
+<p align="center">Sample Test Images</p>
+  
+![testSample](./figs/testSample.png "Sample Test Images")
+
+
 
