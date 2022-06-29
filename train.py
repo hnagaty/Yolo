@@ -7,7 +7,7 @@ Created on Sat Jun 25 23:17:33 2022
 @author: hnagaty
 """
 
-import helpers as hp
+import yoloHelpers as hp
 from torchvision.datasets import VOCDetection
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -100,3 +100,4 @@ elapsed_time = et - st
 print(f'Execution time: {elapsed_time/(60*60)} hours')
 
 torch.save(model.state_dict(), 'yoloWeights.pth')
+

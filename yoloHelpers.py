@@ -10,11 +10,17 @@ import torch
 import numpy as np
 from itertools import repeat
 import torch.nn as nn
+import matplotlib.pyplot as plt
+import torchvision.transforms.functional as F
 
 S = 7 # An image is divided into SxS grid cells
 B = 2 # number of boxes per grid cell
 C = 20 # number of classes
 
+voc_classes = ["background", "aeroplane", "bicycle", "bird", "boat",
+               "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+               "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+               "sofa", "train", "tvmonitor"]
 
 def IOU2(box_1, box_2, device=torch.device('cpu'), use_float64=False):
     """
@@ -156,10 +162,8 @@ def format_label(annotation):
 
     """
     
-    voc_classes = ["background", "aeroplane", "bicycle", "bird", "boat",
-                   "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
-                   "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
-                   "sofa", "train", "tvmonitor"]
+    # I define those functions here since I use them only
+    # from within this function
     
     def format_detected_object(obj, img_x, img_y):
         """
@@ -200,7 +204,7 @@ def format_label(annotation):
         """
         Creates a numpy array for the labels
         This is for a single image
-        It is a 3D array whose dimensions is S, S, 5xB + C
+        It is a 3D array whose dimensions is S, S, C+5xB
         
         Adapted from code at
         https://sachinsachan.medium.com/yolo-v1-implementation-7c88a33795f4
@@ -225,10 +229,10 @@ def format_label(annotation):
             y1 = loc[1] - loc_i
             x1 = loc[0] - loc_j
             
-            if label_matrix[loc_i, loc_j, C] == 0:
-                label_matrix[loc_i, loc_j, C] = 1
-                label_matrix[loc_i, loc_j, cls] = 1
-                label_matrix[loc_i, loc_j, C+1:C+5] = x1, y1, h , w
+            if label_matrix[loc_i, loc_j, C] == 0: # if the grid cell doesn't have a bbox
+                label_matrix[loc_i, loc_j, C] = 1 # confidence
+                label_matrix[loc_i, loc_j, cls] = 1 # class one hot encode
+                label_matrix[loc_i, loc_j, C+1:C+5] = x1, y1, h , w # x,y relative to grid cell. w & h relative to picture size
         return label_matrix
 
     img_x = int(annotation['annotation']['size']['width'])
@@ -527,3 +531,82 @@ class YoloLoss(nn.Module):
         )
 
         return loss
+
+def pred_to_box(pred, conf_threshold = 0.5, 
+                img_x = 1, img_y = 1,
+                label_decode=False):
+    """
+    Converts YOLO tensor to bounding box (PASCAL VOC) format.
+    The result can be used to draw bounding boxes or to calculate
+    the mAP.
+    This is a slow, non-vectorised function. 
+    It can work okay for a single or few infered images, but not
+    efficient for checking mAP during training.
+    
+    Parameters
+    ----------
+    pred : numpy array of dimension (S x S x C + B * 5)
+           This repesents the prediction for a single image
+    conf_threshold : float, optional
+        DESCRIPTION. The confidence threshold below which I ignore the bounding box.
+        The default is 0.5.
+    img_x, img_y : int, optional
+        Image width & height.
+        This is needed to convert relative co-ordinates to image pixel cordinates 
+        The default is 1. That means no conversion is done
+    label_decode: Boolean
+        If True, then convert label class number to label.
+        It uses the voc_classes global variable
+
+    Returns
+    -------
+    dict
+        DESCRIPTION.
+
+    """
+    
+    bboxes = [] # bounding boxes
+    scores = [] # confidence score for each box
+    labels = [] # class number for each box
+
+    for loc_i in range(pred.shape[-2]):
+        for loc_j in range(pred.shape[-3]):
+            predX = pred[loc_i, loc_j] # a single grid cell prediction
+            # for a single box, 
+            # apply this to all boxes
+            boxesB = predX[C:].reshape([B, 5]) # reshape bounding boxes to B x 5
+            # set confidence to zero if any x, y, w or h is < 0
+            boxesB[boxesB.min(axis = -1) < 0] = 0
+            boxC = boxesB[:,0] # the confidence for each box
+            # Only consider a box if confidence is greater than threshold
+            # and if all box predictors are positive
+            if boxC.max() > conf_threshold:
+                boxI = boxC.argmax() # the box of interest; the one with the higher confidence
+                boxDims = boxesB[boxI, 1:] # dimensions of the box, x, y, w, h
+                x, y, h, w = boxDims # WHY WHY WHY
+                # convert x & y to picture relative dims
+                xB, yB = (loc_j + x) / S, (loc_i + y) / S # x,y relative to the image, rather than the grid cell
+                xC, yC = int(xB * img_x), int(yB * img_y) # center x & y in pixels
+                x_min, x_max = xC - int(w/2 * img_x), xC + int(w/2 * img_x)
+                y_min, y_max = yC - int(h/2 * img_y), yC + int(h/2 * img_y)
+                bboxes.append([x_min, y_min, x_max, y_max])
+                # bboxes.append([xB, yB, w, h]) # for debugging
+                scores.append(boxC.max())
+                label = predX[0:C].argmax()
+                if label_decode:
+                    label = voc_classes[label]
+                labels.append(label)
+                    
+    return {"boxes": bboxes,
+            "labels": labels,
+            "scores": scores}
+
+def show(imgs):
+    if not isinstance(imgs, list):
+        imgs = [imgs]
+    fig, axs = plt.subplots(ncols=len(imgs), squeeze=False)
+    for i, img in enumerate(imgs):
+        img = img.detach()
+        img = F.to_pil_image(img)
+        axs[0, i].imshow(np.asarray(img))
+        axs[0, i].set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
